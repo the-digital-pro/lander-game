@@ -165,9 +165,15 @@ the medium. A handful of things diverge intentionally:
 
 * **60 Hz fixed-step physics**, decoupled from render rate. Same simulation
   on any refresh-rate monitor.
-* **Single-pass particle buffer.** All exhaust, explosions, bullets and
-  rocks share one `BufferGeometry` and one `Points` mesh — colours and
-  positions written to typed-array buffers each frame.
+* **Single-pass particle buffer.** All exhaust, explosions, bullets,
+  rocks and wreckage smoke share one `BufferGeometry` and one `Points`
+  mesh — colours and positions written to typed-array buffers each
+  frame.
+* **Per-type wreckage smoke.** Every destroyed object continuously
+  emits rising smoke (matching `LanderSrc.txt:4908-4945`), with each
+  object type carrying its own profile — trees barely wisp, buildings
+  churn out thick persistent plumes, rockets are heaviest (still have
+  fuel to burn).
 * **Camera-following terrain patch.** Only ~50×40 tiles are meshed at any
   time; the patch rebuilds each frame around the camera. Distance fog
   hides the seam.
@@ -182,15 +188,18 @@ the medium. A handful of things diverge intentionally:
 The port is playable and complete enough to be enjoyable. Remaining
 items are pure polish:
 
-* [ ] Replace grey-dot falling rocks with the original 3D rotating
-  `objectRock` mesh
-* [ ] Smoking-gazebo and smoking-building variant meshes (currently a
-  generic burnt-stump mesh stands in for both)
 * [ ] Hide mouse cursor when over the canvas
 * [ ] Mute toggle (`M`)
 * [ ] Reset high-score control
 * [ ] Title / pause screen
 * [ ] Touch controls for mobile
+
+### Deliberately not pursued
+
+* **3D rotating `objectRock` mesh for falling rocks.** Tried in an
+  early iteration; the original octahedron mesh at the size needed for
+  collision felt too prominent on screen. The grey-dot particle reads
+  better at modern resolutions, so we kept it.
 
 ## Credits
 
