@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- night sky background, rounded so it reads as a glyph in browser tabs -->
+  <rect width="32" height="32" rx="5" fill="#0a0814"/>
+
+  <!-- horizon hint -->
+  <path d="M 0 27 L 11 26 L 21 27 L 32 26 L 32 32 L 0 32 Z" fill="#1d3a1a"/>
+
+  <!-- exhaust plume -->
+  <path d="M 12 21 L 16 30 L 20 21 Z" fill="#ff7722"/>
+  <path d="M 14 21 L 16 27 L 18 21 Z" fill="#ffdd44"/>
+
+  <!-- ship hull: stylised top-down lander matching the original 0x080 hull green -->
+  <path d="M 16 4 L 27 16 L 16 22 L 5 16 Z" fill="#3eb84c"/>
+  <!-- forward-facing facet picked out a shade lighter -->
+  <path d="M 16 4 L 27 16 L 16 16 Z" fill="#6dd87a"/>
+  <!-- darker rear facet -->
+  <path d="M 16 4 L 5 16 L 16 16 Z" fill="#2a8636"/>
+
+  <!-- cockpit canopy -->
+  <ellipse cx="16" cy="12" rx="1.8" ry="2.4" fill="#e4f8ff"/>
+  <ellipse cx="16" cy="11.5" rx="0.9" ry="1.2" fill="#86d5ff"/>
+</svg>
