@@ -34,6 +34,7 @@ import {
   spawnExplosion,
   spawnBullet,
   spawnFallingRock,
+  spawnSmokeParticle,
   getParticles,
   killParticle,
   updateParticles,
@@ -160,6 +161,63 @@ function processRockCollisions(): void {
       triggerCrash(player);
       killParticle(r);
       return;
+    }
+  }
+}
+
+// Rising-smoke cadence.  Original spawns one smoke particle per destroyed
+// tile on 1-in-4 frames (LanderSrc.txt:4913-4945).  We add per-object-type
+// profiles so a building churns out a thick plume while a tree barely wisps,
+// and cull by distance so far-away wreckage doesn't blow the particle
+// budget.
+//
+// Per-type profile:
+//   chance  — per-frame probability of emitting a burst
+//   burst   — number of particles spawned per emission
+//   lifeMul — multiplier on per-particle lifetime (longer = thicker plume)
+//
+// Object types from LanderSrc.txt:4640-4651.
+interface SmokeProfile {
+  chance: number;
+  burst: number;
+  lifeMul: number;
+}
+
+const DEFAULT_SMOKE: SmokeProfile = { chance: 0.08, burst: 1, lifeMul: 0.75 };
+const SMOKE_PROFILES: Record<number, SmokeProfile> = {
+  // Trees: minimal wisps — bullet hits, but not much fuel to burn.
+  1: { chance: 0.08, burst: 1, lifeMul: 0.7 }, // small leafy
+  2: { chance: 0.10, burst: 1, lifeMul: 0.8 }, // tall leafy
+  3: { chance: 0.08, burst: 1, lifeMul: 0.7 },
+  4: { chance: 0.08, burst: 1, lifeMul: 0.7 },
+  6: { chance: 0.10, burst: 1, lifeMul: 0.8 },
+  7: { chance: 0.07, burst: 1, lifeMul: 0.65 }, // fir
+  // Gazebo: more wreckage than a tree, less than a building.
+  5: { chance: 0.22, burst: 1, lifeMul: 1.1 },
+  // Building: heavy, persistent smoke — proper structure fire.
+  8: { chance: 0.45, burst: 2, lifeMul: 1.6 },
+  // Rocket: still has fuel — fastest emission, thickest plume.
+  9: { chance: 0.55, burst: 2, lifeMul: 1.8 },
+  10: { chance: 0.55, burst: 2, lifeMul: 1.8 },
+  11: { chance: 0.55, burst: 2, lifeMul: 1.8 },
+};
+
+const SMOKE_VISIBLE_DIST_SQ = 35 * 35;
+const tmpSmokeDelta = new THREE.Vector3();
+
+function emitWreckSmoke(): void {
+  for (const tile of scenery.destroyedTiles) {
+    tmpSmokeDelta.copy(tile.smokeOrigin).sub(player.position);
+    if (tmpSmokeDelta.lengthSq() > SMOKE_VISIBLE_DIST_SQ) continue;
+    const profile = SMOKE_PROFILES[tile.originalType] ?? DEFAULT_SMOKE;
+    if (Math.random() >= profile.chance) continue;
+    for (let i = 0; i < profile.burst; i++) {
+      spawnSmokeParticle(
+        tile.smokeOrigin.x,
+        tile.smokeOrigin.y,
+        tile.smokeOrigin.z,
+        profile.lifeMul,
+      );
     }
   }
 }
@@ -353,6 +411,7 @@ renderer.setAnimationLoop(() => {
 
     updateParticles();
     processBulletHits();
+    emitWreckSmoke();
     maybeDropRock();
     processRockCollisions();
     accumulatorMs -= FIXED_DT_MS;

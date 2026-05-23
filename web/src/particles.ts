@@ -11,7 +11,7 @@ import * as THREE from 'three';
 
 const MAX_PARTICLES = 384;
 
-export type ParticleKind = 'exhaust' | 'explosion' | 'bullet' | 'rock';
+export type ParticleKind = 'exhaust' | 'explosion' | 'bullet' | 'rock' | 'smoke';
 
 interface Particle {
   pos: THREE.Vector3;
@@ -148,6 +148,41 @@ export function spawnExplosion(centre: THREE.Vector3, count = 70): void {
   }
 }
 
+// Smoke (LanderSrc.txt:3870-... AddSmokeParticleToBuffer + 4908-4945).
+// Original spawns one smoke particle per destroyed tile, on 1-in-4 frames,
+// at SMOKE_HEIGHT (= 0.75 tile) above the tile base.  Rises at
+// SMOKE_RISING_SPEED tiles/frame with no gravity.  We scale to 60 fps and
+// keep a small horizontal jitter for a wispy look.
+const SMOKE_RISE = 0.03125 * (50 / 60); // ≈ 0.026 per frame
+const SMOKE_JITTER = 0.008;
+const SMOKE_LIFE = 60; // 1 second at 60 fps
+
+/**
+ * Spawn one rising-smoke particle.  `lifeMul` scales the particle's
+ * lifetime — bigger means a longer-lived puff (so smoke from a building
+ * lingers and reads as a thicker plume than a tree's quick wisp).
+ */
+export function spawnSmokeParticle(
+  x: number,
+  y: number,
+  z: number,
+  lifeMul = 1,
+): void {
+  if (particles.length >= MAX_PARTICLES) return;
+  const life = Math.max(8, Math.round(SMOKE_LIFE * lifeMul));
+  particles.push({
+    pos: new THREE.Vector3(x, y, z),
+    vel: new THREE.Vector3(
+      rand() * SMOKE_JITTER,
+      SMOKE_RISE,
+      rand() * SMOKE_JITTER,
+    ),
+    life,
+    maxLife: life,
+    kind: 'smoke',
+  });
+}
+
 /**
  * Drop a rock from the sky (LanderSrc.txt:4570 DropRocksFromTheSky).  Spawns
  * at the given world (X, Z) high above the player.  Falls under gravity.
@@ -183,7 +218,8 @@ export function killParticle(p: Particle): void {
 export function updateParticles(): void {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.vel.y -= PARTICLE_GRAVITY;
+    // Smoke rises; everything else falls.
+    if (p.kind !== 'smoke') p.vel.y -= PARTICLE_GRAVITY;
     p.pos.add(p.vel);
     p.life -= 1;
     if (p.life <= 0) {
@@ -209,6 +245,14 @@ export function updateParticles(): void {
       colArray[i * 3 + 0] = 0.55;
       colArray[i * 3 + 1] = 0.50;
       colArray[i * 3 + 2] = 0.45;
+    } else if (p.kind === 'smoke') {
+      // Light grey wisps that fade out — additive blending means dark
+      // colours would be invisible against the night sky, so we use a
+      // mid-grey that reads as smoke against any backdrop.
+      const v = 0.35 * t;
+      colArray[i * 3 + 0] = v;
+      colArray[i * 3 + 1] = v;
+      colArray[i * 3 + 2] = v;
     } else {
       colArray[i * 3 + 0] = 1.0;
       colArray[i * 3 + 1] = 0.6 * t + 0.2;

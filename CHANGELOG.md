@@ -8,6 +8,39 @@ port without numbered releases.
 
 ## [Unreleased]
 
+### Added
+- **Continuous rising smoke from destroyed objects, with per-type
+  profiles** (`web/src/particles.ts`, `web/src/scenery.ts`,
+  `web/src/main.ts`). Faithfully ports the loop at
+  `LanderSrc.txt:4908-4945` — every destroyed tile emits smoke spawned
+  `SMOKE_HEIGHT` (0.75 tile) above the wreckage. Smoke rises at
+  `SMOKE_RISING_SPEED` (scaled to 60 fps), is exempt from gravity, and
+  fades over a profile-specific lifetime. Each object type has its own
+  emission profile:
+  - **Trees** (small leafy, tall leafy, fir): minimal wisps —
+    ~7-10% chance per frame, single particle, short life.
+  - **Gazebo**: medium — ~22% chance per frame.
+  - **Building**: thick plume — ~45% chance per frame, 2 particles per
+    burst, ~1.6× lifetime.
+  - **Rocket** (live launchpad rocket types 9/10/11): heaviest plume —
+    ~55% chance per frame, 2 particles per burst, ~1.8× lifetime (it
+    still has fuel to burn).
+  Spawning is culled to ~35 tiles around the player so far-away
+  wreckage doesn't blow the particle budget. `Scenery.destroyedTiles`
+  stores both `smokeOrigin` and `originalType` so the emitter can pick
+  the right profile per kill. Smoke is rendered as mid-grey wisps so it
+  reads correctly through the existing additive-blended `Points` cloud.
+- **Smoking-gazebo and smoking-building variant meshes**
+  (`web/src/scenery.ts`). Ported from `objectSmokingBuilding`
+  (`LanderSrc.txt:13169-13187`, 6 verts/6 faces — burnt floor with two
+  surviving wall sections) and `objectSmokingGazebo`
+  (`LanderSrc.txt:13210-13226`, 6 verts/4 faces — leaning posts on a
+  footprint). Generic destroyed objects now alternate between
+  `objectSmokingRemainsLeft` and `objectSmokingRemainsRight` (mirror)
+  by tile parity so neighbouring stumps don't all lean the same way.
+  `destroyObject` now uses a `smokingGeomFor(originalType, ...)` picker
+  matching the original objectTypes table at `LanderSrc.txt:4640-4666`.
+
 ### Changed
 - **Gravity softened to 30% of the original** (`web/src/physics.ts`). Previous
   iterations sat at 60% then 40%; both still felt punishing. Hover thrust now

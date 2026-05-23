@@ -155,18 +155,77 @@ const BUILDING_FACES: ReadonlyArray<Face> = [
 ];
 
 // ---------------------------------------------------------------------------
-// Smoking remains (LanderSrc.txt:12954-12967) — 5 verts, 2 black faces.
+// Smoking remains, left-leaning (LanderSrc.txt:12954-12967) — 5 verts, 2
+// black faces.  Used for destroyed trees, fir, rocket — alternates with the
+// right-leaning variant by tile parity.
 // ---------------------------------------------------------------------------
-const SMOKING_VERTS: ReadonlyArray<[number, number, number]> = [
-  [-0.15, 0, 0], // V0 base left
-  [0.15, 0, 0], // V1 base right
-  [0.169, -0.25, 0], // V2 first kink
-  [0.1875, -0.5, 0], // V3 mid kink
-  [-0.167, -1.2, 0], // V4 top (leaning left)
+const SMOKING_LEFT_VERTS: ReadonlyArray<[number, number, number]> = [
+  [-0.166, 0, 0],   // V0 base
+  [0.167, 0, 0],    // V1 base
+  [0.168, -0.187, 0], // V2 first kink (leaning right at base)
+  [0.1875, -0.375, 0], // V3 mid kink
+  [-0.167, -1.2, 0],   // V4 top (leans left)
 ];
-const SMOKING_FACES: ReadonlyArray<Face> = [
+const SMOKING_LEFT_FACES: ReadonlyArray<Face> = [
   { a: 0, b: 1, c: 3, colour: 0x000 },
   { a: 2, b: 3, c: 4, colour: 0x000 },
+];
+
+// ---------------------------------------------------------------------------
+// Smoking remains, right-leaning (LanderSrc.txt:12990-13003) — mirror of
+// the left variant.
+// ---------------------------------------------------------------------------
+const SMOKING_RIGHT_VERTS: ReadonlyArray<[number, number, number]> = [
+  [0.167, 0, 0],     // V0 base
+  [-0.167, 0, 0],    // V1 base
+  [-0.168, -0.187, 0], // V2 first kink (leaning left at base)
+  [-0.1875, -0.375, 0], // V3 mid kink
+  [0.167, -1.2, 0],     // V4 top (leans right)
+];
+const SMOKING_RIGHT_FACES: ReadonlyArray<Face> = [
+  { a: 0, b: 1, c: 3, colour: 0x000 },
+  { a: 2, b: 3, c: 4, colour: 0x000 },
+];
+
+// ---------------------------------------------------------------------------
+// Smoking building (LanderSrc.txt:13169-13187) — 6 verts, 6 faces.
+// Footprint floor (V0..V3) + two surviving walls (V4 leans up from the
+// front-left, V5 leans up from the back-right).
+// ---------------------------------------------------------------------------
+const SMOKING_BUILDING_VERTS: ReadonlyArray<[number, number, number]> = [
+  [-0.75, 0, 0.5],   // V0
+  [-0.75, 0, -0.5],  // V1
+  [0.75, 0, 0.5],    // V2
+  [0.75, 0, -0.5],   // V3
+  [-0.75, -0.4, 0.5], // V4  upright wall section, front-left
+  [0.75, -0.3, -0.5], // V5  upright wall section, back-right
+];
+const SMOKING_BUILDING_FACES: ReadonlyArray<Face> = [
+  { a: 0, b: 1, c: 2, colour: 0x000 }, // burnt floor
+  { a: 1, b: 2, c: 3, colour: 0x000 }, // burnt floor
+  { a: 0, b: 2, c: 4, colour: 0x333 }, // surviving wall
+  { a: 0, b: 1, c: 4, colour: 0x666 },
+  { a: 2, b: 3, c: 5, colour: 0x555 },
+  { a: 1, b: 3, c: 5, colour: 0x777 },
+];
+
+// ---------------------------------------------------------------------------
+// Smoking gazebo (LanderSrc.txt:13210-13226) — 6 verts, 4 faces.  Two
+// leaning posts (V0/V1) and a square footprint (V2..V5).
+// ---------------------------------------------------------------------------
+const SMOKING_GAZEBO_VERTS: ReadonlyArray<[number, number, number]> = [
+  [0, -0.45, -0.0625],   // V0  leaning post top
+  [0.1, -0.45, -0.0625], // V1  leaning post top
+  [0.5, 0, 0.5],         // V2  base
+  [-0.5, 0, 0.5],        // V3  base
+  [0.5, 0, -0.5],        // V4  base
+  [-0.5, 0, -0.5],       // V5  base
+];
+const SMOKING_GAZEBO_FACES: ReadonlyArray<Face> = [
+  { a: 0, b: 1, c: 2, colour: 0x000 },
+  { a: 0, b: 1, c: 3, colour: 0x333 },
+  { a: 0, b: 1, c: 4, colour: 0x444 },
+  { a: 0, b: 1, c: 5, colour: 0x000 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -248,7 +307,10 @@ const GEOMS = {
   gazebo: buildObjectGeom(GAZEBO_VERTS, GAZEBO_FACES),
   rocket: buildObjectGeom(ROCKET_VERTS, ROCKET_FACES),
   building: buildObjectGeom(BUILDING_VERTS, BUILDING_FACES),
-  smoking: buildObjectGeom(SMOKING_VERTS, SMOKING_FACES),
+  smokingLeft: buildObjectGeom(SMOKING_LEFT_VERTS, SMOKING_LEFT_FACES),
+  smokingRight: buildObjectGeom(SMOKING_RIGHT_VERTS, SMOKING_RIGHT_FACES),
+  smokingGazebo: buildObjectGeom(SMOKING_GAZEBO_VERTS, SMOKING_GAZEBO_FACES),
+  smokingBuilding: buildObjectGeom(SMOKING_BUILDING_VERTS, SMOKING_BUILDING_FACES),
 };
 
 const SHARED_MATERIAL = new THREE.MeshBasicMaterial({
@@ -322,10 +384,23 @@ export function populateObjectMap(): Uint8Array {
 // Scene placement.
 // ---------------------------------------------------------------------------
 
+export interface DestroyedTile {
+  /** Scene-space position at the top of the wreckage where smoke spawns. */
+  smokeOrigin: THREE.Vector3;
+  /** Original object type before destruction (1..11) — drives smoke profile. */
+  originalType: number;
+}
+
 export interface Scenery {
   group: THREE.Group;
   meshes: Map<number, THREE.Mesh>;
   map: Uint8Array;
+  /**
+   * Every tile destroyed so far in this game.  Used by main.ts to continually
+   * spawn rising smoke particles from each wreckage
+   * (LanderSrc.txt:4908-4945).
+   */
+  destroyedTiles: DestroyedTile[];
 }
 
 /**
@@ -354,16 +429,41 @@ export function buildScenery(map: Uint8Array): Scenery {
       meshes.set(z * MAP_SIZE + x, mesh);
     }
   }
-  return { group, meshes, map };
+  return { group, meshes, map, destroyedTiles: [] };
+}
+
+// Smoke spawns this far above the wreckage tile (LanderSrc.txt:4930-4936:
+// "SMOKE_HEIGHT above the base of the object, or 3/4 of the tile size").
+const SMOKE_HEIGHT = 0.75;
+
+/**
+ * Pick the smoking-remains geometry to use for a destroyed object.  Mirrors
+ * the original objectTypes table (LanderSrc.txt:4640-4666) which maps
+ * different destroyed object types to specific variant blueprints —
+ * gazebos become `objectSmokingGazebo`, buildings become
+ * `objectSmokingBuilding`, and everything else alternates between the
+ * left- and right-leaning generic smoking stumps.
+ */
+function smokingGeomFor(
+  originalType: number,
+  tileX: number,
+  tileZ: number,
+): THREE.BufferGeometry {
+  if (originalType === 5) return GEOMS.smokingGazebo;
+  if (originalType === 8) return GEOMS.smokingBuilding;
+  // Alternate left/right by tile parity so neighbouring stumps don't all
+  // lean the same way.
+  const parity = ((tileX + tileZ) & 1) === 0;
+  return parity ? GEOMS.smokingLeft : GEOMS.smokingRight;
 }
 
 /**
  * Destroy the object at (tileX, tileZ) in the object map.  Replaces the mesh
- * with the smoking-remains mesh in place (LanderSrc.txt:12943) and marks the
- * tile with SMOKING_REMAINS_TYPE — collision logic treats types >= 12 as
- * pass-through so the player can fly over remains safely.  Returns the
- * world-space position of the destroyed object so the caller can spawn an
- * explosion there, or null if no object was present.
+ * with the appropriate smoking-remains variant (LanderSrc.txt:4654-4664)
+ * and marks the tile with SMOKING_REMAINS_TYPE — collision logic treats
+ * types >= 12 as pass-through so the player can fly over remains safely.
+ * Returns the world-space position of the destroyed object so the caller
+ * can spawn an explosion there, or null if no object was present.
  */
 export function destroyObject(
   scenery: Scenery,
@@ -382,11 +482,20 @@ export function destroyObject(
   const pos = oldMesh.position.clone();
   scenery.group.remove(oldMesh);
 
-  const remains = new THREE.Mesh(GEOMS.smoking, SHARED_MATERIAL);
+  const remains = new THREE.Mesh(smokingGeomFor(type, tileX, tileZ), SHARED_MATERIAL);
   remains.position.copy(pos);
   scenery.group.add(remains);
   scenery.meshes.set(key, remains);
   scenery.map[key] = SMOKING_REMAINS_TYPE;
+
+  // Record where rising smoke should emanate from for this wreckage.
+  // Scene Y is up, so add SMOKE_HEIGHT to lift the spawn point above the
+  // burnt stump.  Original type is preserved so main.ts can pick a smoke
+  // profile (trees barely wisp; buildings churn out thick plumes).
+  scenery.destroyedTiles.push({
+    smokeOrigin: new THREE.Vector3(pos.x, pos.y + SMOKE_HEIGHT, pos.z),
+    originalType: type,
+  });
 
   return pos;
 }
