@@ -6,9 +6,12 @@
 > ([source on GitHub](https://github.com/markmoxon/lander-source-code-acorn-archimedes))
 > and rebuilt in TypeScript + Three.js.
 
+**▶ Play it now: <https://lander-game.netlify.app/>**
+
 ![Status](https://img.shields.io/badge/status-playable-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Stack](https://img.shields.io/badge/stack-Three.js%20%2B%20TypeScript%20%2B%20Vite-orange)
+[![Netlify Status](https://img.shields.io/badge/deploy-live-success?logo=netlify)](https://lander-game.netlify.app/)
 
 ---
 
@@ -95,7 +98,11 @@ between you and the rocks is your wrist.
 
 ## Getting started
 
-Requires Node 18+.
+> **No setup needed?** A live build is hosted at
+> <https://lander-game.netlify.app/> — just open it in any modern desktop
+> browser, click the canvas, and play.
+
+To run locally requires Node 18+.
 
 ```bash
 cd web
