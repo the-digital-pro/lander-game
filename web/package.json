@@ -1,0 +1,20 @@
+{
+  "name": "lander-web",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Web port of David Braben's 1987 Lander (Acorn Archimedes)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.165.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.165.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.3.0"
+  }
+}

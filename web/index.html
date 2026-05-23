@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lander (1987) — web port</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+    canvas { display: block; }
+
+    #hud {
+      position: fixed; top: 0; left: 0; right: 0;
+      padding: 10px 14px;
+      color: #ffd; font-family: ui-monospace, monospace; font-size: 13px;
+      text-shadow: 0 0 4px #000;
+      pointer-events: none;
+      display: flex; align-items: center; gap: 18px;
+    }
+    #hud .label { letter-spacing: 0.15em; font-weight: bold; }
+    #hud .status { color: #ff8080; font-weight: bold; letter-spacing: 0.15em; }
+    #hud .landed { color: #80ff80; }
+
+    #fuel-bar {
+      width: 200px; height: 12px;
+      border: 1px solid #ffd; padding: 1px;
+      box-shadow: 0 0 6px #000;
+    }
+    #fuel-fill {
+      height: 100%; width: 100%;
+      background: linear-gradient(90deg, #ff3030 0%, #ffd040 35%, #50d050 70%);
+      transition: width 80ms linear;
+    }
+
+    #lives {
+      display: inline-flex; gap: 4px;
+    }
+    #lives .icon {
+      width: 14px; height: 14px;
+      background: #80c0ff; clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    }
+
+    #overlay {
+      position: fixed; inset: 0;
+      display: none; align-items: center; justify-content: center;
+      pointer-events: none;
+      background: rgba(0, 0, 0, 0.35);
+    }
+    #overlay.show { display: flex; }
+    #overlay .panel {
+      font-family: ui-monospace, monospace; text-align: center;
+      color: #ff5050; text-shadow: 0 0 8px #000;
+    }
+    #overlay h1 { font-size: 64px; letter-spacing: 0.2em; margin: 0 0 18px; }
+    #overlay p { font-size: 18px; letter-spacing: 0.15em; color: #ffd; margin: 0; }
+
+    #controls {
+      position: fixed; bottom: 8px; left: 12px;
+      color: #aaa; font-family: ui-monospace, monospace; font-size: 11px;
+      text-shadow: 0 0 4px #000;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <span class="label">LANDER</span>
+    <span>fuel</span>
+    <div id="fuel-bar"><div id="fuel-fill"></div></div>
+    <span>lives</span>
+    <div id="lives"></div>
+    <span id="score"></span>
+    <span id="readout"></span>
+    <span id="status" class="status"></span>
+  </div>
+
+  <div id="overlay">
+    <div class="panel">
+      <h1>GAME OVER</h1>
+      <p>press <kbd>SPACE</kbd> to restart</p>
+    </div>
+  </div>
+
+  <div id="controls">
+    LMB thrust &nbsp;&middot;&nbsp; MMB hover &nbsp;&middot;&nbsp; RMB fire &nbsp;&middot;&nbsp; mouse = tilt
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

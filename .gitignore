@@ -1,0 +1,26 @@
+# OS
+.DS_Store
+
+# Local tooling / editor config
+.claude/
+.vscode/
+.idea/
+*.swp
+
+# Node
+node_modules/
+
+# Vite / build output
+web/dist/
+web/.vite/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Original Lander source — copyrighted by D.J. Braben (1987), with
+# annotated commentary copyrighted by Mark Moxon (https://lander.bbcelite.com).
+# Kept locally for reference; not redistributed in this repo.
+LanderSrc.txt
