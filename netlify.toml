@@ -1,0 +1,43 @@
+# Netlify deploy config.  The Vite app lives under web/, so we cd in,
+# install, and build there.  The build output is web/dist/, which is what
+# we publish.
+#
+# IMPORTANT: without this file, Netlify will happily auto-detect a Vite
+# project but tends to publish the repo root, which then serves raw .ts
+# source files.  Browsers refuse them with:
+#   "Expected a JavaScript-or-Wasm module script but the server responded
+#    with a MIME type of text/vnd.trolltech.linguist"
+# (Netlify's default MIME mapping for .ts is the Qt Linguist file type,
+# since outside of frontend tooling .ts overwhelmingly means that.)
+
+[build]
+  base    = "web"
+  command = "npm install && npm run build"
+  # publish is RELATIVE to base, so this resolves to web/dist
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Just in case Netlify's content-type detection ever drops the ball
+# again, force JS/TS/CSS/SVG/WASM MIME types explicitly.  The Vite build
+# output should only contain .js (not .ts), but this is belt-and-braces.
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+
+[[headers]]
+  for = "/*.mjs"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Content-Type = "image/svg+xml"
+
+[[headers]]
+  for = "/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
