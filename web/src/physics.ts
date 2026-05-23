@@ -44,11 +44,13 @@ export interface PlayerState {
 // We run at 60 Hz fixed-step.  Matching the source per-second values
 // literally feels brutal by modern standards (~37 tiles/sec terminal fall,
 // the player has under a second to react) so we soften gravity to about
-// 60% of source.  Thrust + friction stay at the source rate so the ship
-// has plenty of authority to climb.
-const GRAVITY_BASE = 0.01172 * (50 / 60) * 0.6; // ~0.00586
+// 30% of source.  Thrust + friction stay at the source rate so the ship
+// has plenty of authority to climb and hover thrust comfortably exceeds
+// gravity (~2.2x), letting the player hold altitude on hover alone with
+// margin to react.
+const GRAVITY_BASE = 0.01172 * (50 / 60) * 0.3; // ~0.00293
 const THRUST_ACCEL = 0.03125 * (50 / 60); // 0.02604
-const HOVER_THRUST_ACCEL = THRUST_ACCEL / 4;
+const HOVER_THRUST_ACCEL = THRUST_ACCEL / 4; // 0.00651, ~2.2x gravity
 // Original retention/sec = (63/64)^50 ≈ 0.456.  Per-frame at 60: 0.987.
 const FRICTION = Math.pow(63 / 64, 50 / 60); // ≈ 0.987
 

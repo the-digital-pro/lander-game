@@ -44,11 +44,17 @@ export function createShipOrientation(): ShipOrientationState {
  * polar-angle convention (Archimedes mouse-Y was 0 at the bottom of the
  * screen, which is equivalent to browser-Y positive-down once we put both
  * through atan2 unchanged).
+ *
+ * If `lockUpright` is true (ship is sitting on the launchpad), pitch is
+ * forced to 0 so the model can't lean into the pad or surrounding
+ * scenery.  Direction still tracks the mouse so the ship is already aimed
+ * the moment the player lifts off.
  */
 export function updateOrientation(
   state: ShipOrientationState,
   mouseX: number,
   mouseY: number,
+  lockUpright = false,
 ): void {
   const rawAngle = Math.atan2(mouseY, mouseX);
   let rawPitch = Math.min(Math.hypot(mouseX, mouseY), 1) * MAX_PITCH;
@@ -58,7 +64,7 @@ export function updateOrientation(
   // along the shortest arc so wrapping past +/- pi doesn't snap.
   const deltaAngle = wrapPi(rawAngle - state.direction);
   state.direction = wrapPi(state.direction + deltaAngle * 0.5);
-  state.pitch = (state.pitch + rawPitch) * 0.5;
+  state.pitch = lockUpright ? 0 : (state.pitch + rawPitch) * 0.5;
 }
 
 /**

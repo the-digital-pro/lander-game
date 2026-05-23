@@ -318,7 +318,9 @@ renderer.setAnimationLoop(() => {
   accumulatorMs += dt;
 
   while (accumulatorMs >= FIXED_DT_MS) {
-    updateOrientation(shipOrient, input.x, input.y);
+    // Lock the ship upright while it's sitting on the pad so the mesh
+    // can't tilt into the launchpad or surrounding scenery.
+    updateOrientation(shipOrient, input.x, input.y, player.onPad && player.alive);
     applyOrientation(ship, shipOrient);
     updatePhysics(player, ship.quaternion, input, objectMap);
 
