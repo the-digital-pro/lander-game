@@ -6,6 +6,8 @@
 
 import * as THREE from 'three';
 
+import { shadeWithClouds } from './clouds';
+
 // Vertex positions in original-Y orientation (LanderSrc.txt:12816-12824).
 const SHIP_VERTICES: ReadonlyArray<[number, number, number]> = [
   [1.0, 0.3125, 0.5],       // V0  front-right hull
@@ -39,12 +41,33 @@ const SHIP_FACES: ReadonlyArray<Face> = [
   { a: 6, b: 7, c: 8, colour: 0xc80 }, // landing pad underside (amber)
 ];
 
-function rgb12(c: number): { r: number; g: number; b: number } {
-  return {
-    r: ((c >> 8) & 0xf) / 15,
-    g: ((c >> 4) & 0xf) / 15,
-    b: (c & 0xf) / 15,
+const scratchColour = new THREE.Color();
+
+/** Local-space point the engine light and glow hang from. */
+const ENGINE_Y = -0.42;
+
+export interface Ship extends THREE.Group {
+  userData: {
+    engineLight: THREE.PointLight;
+    engineGlow: THREE.Sprite;
   };
+}
+
+function buildGlowTexture(): THREE.Texture {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.25, 'rgba(255,220,170,0.75)');
+  gradient.addColorStop(0.6, 'rgba(255,120,40,0.22)');
+  gradient.addColorStop(1, 'rgba(255,80,0,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
 
 /**
@@ -52,8 +75,12 @@ function rgb12(c: number): { r: number; g: number; b: number } {
  * local origin (matching the original's xObject/yObject/zObject layout) and
  * sized so one unit = one tile.  Caller positions/rotates the group in the
  * scene.
+ *
+ * The hull is the original nine triangles in the original colours; what is
+ * new is that it is lit, casts a shadow, and carries an engine light that
+ * throws a warm pool onto the ground when it burns close to it.
  */
-export function buildShip(): THREE.Group {
+export function buildShip(): Ship {
   const positions: number[] = [];
   const colors: number[] = [];
 
@@ -66,9 +93,17 @@ export function buildShip(): THREE.Group {
     positions.push(vb[0], -vb[1], vb[2]);
     positions.push(vc[0], -vc[1], vc[2]);
 
-    const col = rgb12(face.colour);
+    // 12-bit Archimedes colours are display values: sRGB -> linear.
+    // Lifted a little at the dark end, as scenery.ts does and for the same
+    // reason: these were unlit display colours and now sit under a sun.
+    scratchColour.setRGB(
+      Math.pow(((face.colour >> 8) & 0xf) / 15, 0.75),
+      Math.pow(((face.colour >> 4) & 0xf) / 15, 0.75),
+      Math.pow((face.colour & 0xf) / 15, 0.75),
+      THREE.SRGBColorSpace,
+    );
     for (let i = 0; i < 3; i++) {
-      colors.push(col.r, col.g, col.b);
+      colors.push(scratchColour.r, scratchColour.g, scratchColour.b);
     }
   }
 
@@ -77,12 +112,53 @@ export function buildShip(): THREE.Group {
   geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geom.computeVertexNormals();
 
-  const mat = new THREE.MeshBasicMaterial({
+  const mat = new THREE.MeshLambertMaterial({
     vertexColors: true,
     side: THREE.DoubleSide,
+    // A touch of self-light so the dark-green hull never sinks into the
+    // dark-green land beneath it.
+    emissive: new THREE.Color(0x0b2a1c),
   });
 
-  const group = new THREE.Group();
-  group.add(new THREE.Mesh(geom, mat));
+  const hull = new THREE.Mesh(geom, shadeWithClouds(mat));
+  hull.castShadow = true;
+
+  const engineLight = new THREE.PointLight(0xffa860, 0, 11, 2);
+  engineLight.position.set(0, ENGINE_Y - 0.3, 0);
+
+  const engineGlow = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: buildGlowTexture(),
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      transparent: true,
+      opacity: 0,
+    }),
+  );
+  engineGlow.position.set(0, ENGINE_Y, 0);
+  engineGlow.renderOrder = 13;
+
+  const group = new THREE.Group() as Ship;
+  group.add(hull, engineLight, engineGlow);
+  group.userData = { engineLight, engineGlow };
   return group;
+}
+
+let engineLevel = 0;
+
+/**
+ * Drive the engine light and glow.  `throttle` is 0 (off), ~0.35 (hover) or
+ * 1 (full thrust); the response is eased so the light breathes rather than
+ * snapping.  Call once per rendered frame.
+ */
+export function setShipEngine(ship: Ship, throttle: number, time: number): void {
+  engineLevel += (throttle - engineLevel) * 0.3;
+  const flicker = 0.88 + 0.12 * Math.sin(time * 61) * Math.sin(time * 37);
+  const level = engineLevel * flicker;
+  ship.userData.engineLight.intensity = level * 16;
+  const glow = ship.userData.engineGlow;
+  glow.material.opacity = Math.min(1, level * 1.4);
+  const size = 0.5 + level * 1.1;
+  glow.scale.set(size, size, 1);
+  glow.material.color.setScalar(1 + level * 2.5);
 }

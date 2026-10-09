@@ -8,6 +8,146 @@ port without numbered releases.
 
 ## [Unreleased]
 
+### Modern edition
+
+A rework of everything around the ported flight model: a new renderer, and
+a Zarch-style defence game built on top of the original Lander mechanics.
+The flight model itself (friction, thrust, hover, gravity, fuel, landing
+speed) is unchanged.
+
+#### Added
+- **Landbots** (`web/src/landbots.ts`). Saucers modelled on Zarch's
+  seeders that drift over dry land spraying virus. They wander toward
+  nearby ground that is still clean rather than chasing the player. Each
+  takes several hits; from wave 3 they charge up and fire slow plasma
+  bolts at where the ship is heading. Roughly 5.5-6.5 tiles of land are
+  lost per bot per second.
+- **Virus and toxicity** (`web/src/infection.ts`). A per-tile infection
+  level drives the terrain colour (green to brown/crimson/pink, with a
+  pulsing glow), mutates trees standing on it, and sums into a planet-wide
+  toxicity meter. 100% toxicity (42% of dry land infected) ends the run.
+  Pads and their aprons are immune. There is no creep: killing the bots
+  stops the spread.
+- **Attack waves and scoring** (`web/src/game.ts`). Clearing every landbot
+  ends a wave, pays a bonus for clean land, and lets 38% of infected tiles
+  recover. Waves grow from 2 bots to 9. Extra ship every 10,000 points.
+- **Scanner minimap** (`web/src/minimap.ts`). Whole-world radar, centred
+  on the ship and north-up, showing clean/infected land, landbots, landing
+  zones and the ship's heading. One pixel per tile; only changed tiles are
+  repainted.
+- **Five outpost landing zones** (`web/src/terrain.ts`,
+  `web/src/landingPads.ts`). Sited automatically on level ground and
+  spread across the map by farthest-point sampling. Every pad refuels, and
+  the last one touched is the respawn point. Each has a marked deck, edge
+  lights that show its state, and a beacon beam.
+- **Wrap-around world.** The six-sine landscape is exactly periodic in 256
+  tiles, so the map is now a seamless torus.
+- **Renderer**: sun and hemisphere lighting with a shadow map that follows
+  the ship; dusk sky dome (`sky.ts`); HDR target with MSAA, bloom, grade
+  pass and ACES tone mapping (`post.ts`). The scene's multisampled target
+  is resolved once per frame and the effect passes run on plain buffers.
+- **Volcanoes** (`web/src/volcanoes.ts`, `web/src/terrain.ts`,
+  `web/src/terrainMesh.ts`). Three cones with summit craters are stamped
+  into the landscape as real terrain, sited on high ground at least 50
+  tiles from any landing zone. Crater lakes and three lava streams per
+  cone glow from a per-vertex heat value. Each volcano cycles between
+  dormant (40-95 s; thin ash plume), rumbling (6 s warning: thicker ash,
+  spitting lava, a growl, "Eruption imminent") and erupting (5.5 s: lava
+  fountain and about 23 lava bombs). Bombs fly in high arcs out to roughly
+  38 tiles, each with a landing marker; one destroys the ship, any scenery
+  on the tile it hits, and any landbot it catches, and leaves a glowing
+  splash. Flying down into a crater, or anywhere up the column above an
+  erupting one, is also fatal. Bullets pass through lava bombs. The
+  scanner marks volcanoes and shows when one is stirring. Cones carry no
+  scenery and cannot be infected.
+- **Wind turbines** (`web/src/turbines.ts`, `web/src/terrain.ts`). Five
+  wind farms of three turbines each, sited on firm, level ground at least
+  34 tiles from any landing zone and clear of the volcanoes; the first is
+  placed as near the home pad as that allows. Each rotor blows a stream of
+  air 20 tiles long that widens as it goes, and draws a weaker draught in
+  over 6 tiles behind it. The wind is a velocity field, not a force: a
+  ship inside a stream is dragged toward the speed of the air there (up to
+  18 tiles/s at the rotor), with some turbulence on top, so it is never
+  blown faster than the wind. Streams fade toward their edges and can be
+  flown over or, close in, under. Each farm swings 34 degrees either side
+  of its bearing over 55 s and gusts between 60% and 100%. Tower, nacelle
+  and the full swept disc destroy the ship ("Hit a turbine"); rounds ring
+  off the tower. The wind is drawn as camera-facing streaks that move at
+  the air's speed, plus dust or spray where a stream meets the surface.
+  The scanner marks every turbine and the current reach and direction of
+  its wind, the status chip reads "Crosswind" or "Gale", and there is a
+  wind howl and a blade beat. Turbines are instanced (four draw calls for
+  all fifteen) and cast shadows. Nothing grows within three tiles of one.
+- **Clouds** (`web/src/clouds.ts`, `web/src/sky.ts`). A layer of broken
+  cumulus sits above normal flying height, defined by a 256x256 weather
+  map that tiles with the world. Its shadows move across terrain, scenery,
+  the ship and the sea (direct light only; sky light and emission are left
+  alone), and the sea mirrors its underside. From above, the layer is
+  drawn as a stack of translucent slices with per-pixel ray jitter so it
+  reads as soft volume; flying into it washes the view out and shows an
+  "In cloud" status. Separately, sunset-lit cloud banks are painted along
+  the horizon in the sky dome, which is now drawn after solid geometry so
+  its shader only runs on visible sky.
+- **Sea with real waves** (`web/src/water.ts`). The surface is a vertex
+  grid displaced by nine Gerstner (trochoidal) waves, 14 tiles down to 2
+  in length, moving at deep-water dispersion speeds. Shading re-evaluates
+  the same waves per pixel plus finer ripples and noise chop: Fresnel
+  reflection of the sky, sun glitter, light through wave crests, whitecaps
+  where the swell pinches. A depth-and-openness chart of the landscape
+  damps the swell in shallow and sheltered water (ponds stay calm), and
+  drives the colour ramp, seabed caustics, and breakers that run in along
+  the depth contours and leave foam at the moving waterline. All wave
+  vectors are whole cycles per 256 tiles, so the sea wraps seamlessly with
+  the world. Collisions still use the flat mean sea level.
+- **Chase camera** (`web/src/camera.ts`) that frames the ship and the
+  ground under it together, pulls back with altitude, widens with speed,
+  shakes on explosions and lifts over hillsides. Heading stays fixed, as
+  in the original, so the mouse still works as a flight stick.
+- **Flying aids** (`web/src/shadow.ts`): landing ring that turns green or
+  red over a pad, an aim reticle at the predicted point of impact, and
+  edge-of-screen pointers to the nearest landbot and (when fuel is low)
+  the nearest pad.
+- **HUD and screens** (`web/index.html`, `web/src/hud.ts`): scanner,
+  wave/toxicity, score/lives, fuel and flight instruments, banners, score
+  popups, and title, pause and game-over overlays.
+- **Keyboard alternatives** for every mouse button (`W`/`S`/`Space` and
+  friends), pause (`P`/`Esc`, and on losing focus) and mute (`M`).
+- **Quit to title**: the pause and game-over screens each have a button
+  (and `Q`; `Esc` too on game over) that ends the run and returns to the
+  title screen with a fresh world.
+- **Audio**: landbot proximity hum, plasma, hull hits, wave and landing
+  cues, toxicity and low-fuel alarms, ambient wind, volcano rumble,
+  turbine wind and blades.
+- **Adaptive resolution**: pixel ratio capped at 2, stepping down if frame
+  rate can't be held.
+
+#### Changed
+- **Terrain** (`web/src/terrainMesh.ts`) is meshed once as static chunks
+  instead of being rebuilt and reallocated every frame; virus changes
+  update only the affected slice of the colour buffer.
+- **Scenery** (`web/src/scenery.ts`) is drawn with one `InstancedMesh` per
+  blueprint instead of one `Mesh` per object. Objects now sit at tile
+  centres, so what you see lines up with what you can hit.
+- **Particles** (`web/src/particles.ts`) are struct-of-arrays GPU point
+  sprites in two blend modes, replacing the 384-object additive table.
+  Smoke is now dark. Exhaust bounces off the ground and kicks up dust or
+  spray.
+- **Bullets and rocks** moved out of the particle table into
+  `web/src/projectiles.ts`. Bullets fire every 3 frames, reach about 50%
+  further, and only destroy scenery they actually come down among.
+  Rocks are 3D, can be shot down, start in wave 2, and mark where they
+  will land. (This reverses the earlier decision not to use a rock mesh.)
+- **Difficulty ramp** follows the wave rather than the kill count:
+  gravity 1.2x / 1.4x / 1.6x at waves 4 / 7 / 10.
+- **Colour management**: palette colours are now treated as sRGB and
+  converted to linear. Previously they were passed through as linear,
+  which washed everything out. The darkest original scenery colours are
+  lifted so they hold up under lighting.
+- **Crash sequence** is longer (so the wreck can be seen) and a fresh
+  ship has a short shield.
+- **High score** is stored under a new key (`lander-high-score-v2`); the
+  score scale changed, so old bests don't carry over.
+
 ### Added
 - **Continuous rising smoke from destroyed objects, with per-type
   profiles** (`web/src/particles.ts`, `web/src/scenery.ts`,
